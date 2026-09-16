@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Confinamiento de Espectro — Simulador de Atenuación Pasiva</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0B0F14;
+    --panel:#121821;
+    --panel-2:#161D28;
+    --line:#243040;
+    --text:#E7ECF2;
+    --muted:#7E8CA0;
+    --accent:#5EEAD4;
+    --danger:#FB7185;
+    --ok:#5EEAD4;
+    --warn:#F5A524;
+    --antenna:#F5A524;
+    font-family:'Space Grotesk', sans-serif;
+  }
+  @media (prefers-color-scheme: light){
+    :root:not([data-theme="dark"]){
+      --bg:#0B0F14; --panel:#121821; --panel-2:#161D28; --line:#243040; --text:#E7ECF2; --muted:#7E8CA0;
+    }
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--text);min-height:100%;}
+  body{padding:28px 20px 60px;}
+  .wrap{max-width:1180px;margin:0 auto;}
+
+  header{margin-bottom:22px;}
+  .eyebrow-row{display:flex;align-items:center;gap:10px;color:var(--muted);font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.02em;}
+  .dot{width:6px;height:6px;border-radius:50%;background:var(--accent);box-shadow:0 0 8px var(--accent);}
+  h1{font-size:clamp(24px,3.4vw,34px);font-weight:600;margin:8px 0 6px;letter-spacing:-0.01em;line-height:1.15;}
+  h1 .thin{color:var(--muted);font-weight:400;}
+  .subtitle{color:var(--muted);font-size:14.5px;max-width:680px;line-height:1.55;}
+
+  .grid{display:grid;grid-template-columns:300px 1fr;gap:18px;}
+  @media (max-width:900px){.grid{grid-template-columns:1fr;}}
+
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:18px 18px 20px;}
+  .panel h2{font-size:11px;text-transform:none;letter-spacing:.03em;color:var(--muted);font-family:'IBM Plex Mono',monospace;margin:0 0 16px;font-weight:500;border-bottom:1px solid var(--line);padding-bottom:10px;}
+
+  .field{margin-bottom:18px;}
+  .field label{display:flex;justify-content:space-between;align-items:baseline;font-size:13px;color:var(--text);margin-bottom:8px;}
+  .field label span.val{font-family:'IBM Plex Mono',monospace;color:var(--accent);font-size:12.5px;}
+  select{
+    width:100%;background:var(--panel-2);color:var(--text);border:1px solid var(--line);
+    border-radius:6px;padding:9px 10px;font-family:'IBM Plex Mono',monospace;font-size:12.5px;
+    appearance:none;cursor:pointer;
+  }
+  select:focus{outline:2px solid var(--accent);outline-offset:1px;}
+  input[type=range]{
+    width:100%;height:4px;border-radius:2px;background:var(--line);appearance:none;-webkit-appearance:none;cursor:pointer;
+  }
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none;width:15px;height:15px;border-radius:50%;background:var(--accent);
+    border:2px solid #06231f;cursor:pointer;
+  }
+  input[type=range]::-moz-range-thumb{
+    width:13px;height:13px;border-radius:50%;background:var(--accent);border:2px solid #06231f;cursor:pointer;
+  }
+  input[type=range]:focus{outline:2px solid var(--accent);outline-offset:3px;}
+  .hint{font-size:11px;color:var(--muted);margin-top:6px;line-height:1.4;}
+
+  .main-col{display:flex;flex-direction:column;gap:18px;}
+
+  .schema-panel{padding:0;overflow:hidden;}
+  .schema-head{display:flex;justify-content:space-between;align-items:center;padding:14px 18px;border-bottom:1px solid var(--line);}
+  .schema-head h2{margin:0;border:none;padding:0;}
+  .badge{
+    font-family:'IBM Plex Mono',monospace;font-size:11.5px;padding:5px 10px;border-radius:20px;
+    border:1px solid var(--line);color:var(--muted);
+  }
+  .badge.blocked{color:var(--ok);border-color:rgba(94,234,212,.35);background:rgba(94,234,212,.07);}
+  .badge.leak{color:var(--danger);border-color:rgba(251,113,133,.35);background:rgba(251,113,133,.07);}
+
+  svg text{font-family:'IBM Plex Mono',monospace;}
+
+  .readouts{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--line);border-top:1px solid var(--line);}
+  @media (max-width:700px){.readouts{grid-template-columns:repeat(2,1fr);}}
+  .ro{background:var(--panel);padding:14px 16px;}
+  .ro .k{font-size:10.5px;color:var(--muted);font-family:'IBM Plex Mono',monospace;letter-spacing:.02em;margin-bottom:6px;}
+  .ro .v{font-size:19px;font-family:'IBM Plex Mono',monospace;font-weight:600;}
+  .ro .v.accent{color:var(--accent);}
+  .ro .v.danger{color:var(--danger);}
+
+  .chart-panel h2{margin-bottom:6px;}
+  .chart-sub{color:var(--muted);font-size:12px;margin-bottom:14px;line-height:1.5;}
+
+  footer{margin-top:24px;color:var(--muted);font-size:11.5px;line-height:1.7;font-family:'IBM Plex Mono',monospace;border-top:1px solid var(--line);padding-top:16px;}
+  footer b{color:var(--text);font-weight:500;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="eyebrow-row"><span class="dot"></span>SIMULADOR DE ATENUACIÓN PASIVA · ESPECTRO CONFINADO</div>
+    <h1>Blindaje de perímetro <span class="thin">— del jamming activo a la física del muro</span></h1>
+    <p class="subtitle">Modela cómo el grosor y material de un muro degradan la relación señal-ruido de una señal celular hasta dejarla por debajo del umbral operativo, sin emitir una sola frecuencia. Ajusta las variables de ingeniería y observa el balance de potencias en tiempo real.</p>
+  </header>
+
+  <div class="grid">
+    <div class="panel controls">
+      <h2>VARIABLES DE INGENIERÍA</h2>
+
+      <div class="field">
+        <label>Tecnología / banda<span class="val" id="freqVal">1900 MHz</span></label>
+        <select id="tech">
+          <option value="0">2G — 850 MHz</option>
+          <option value="1" selected>3G — 1900 MHz</option>
+          <option value="2">4G LTE — 2100 MHz</option>
+          <option value="3">5G Sub-6 — 3.5 GHz</option>
+          <option value="4">5G mmWave — 28 GHz</option>
+        </select>
+        <div class="hint" id="techHint"></div>
+      </div>
+
+      <div class="field">
+        <label>Material del muro</label>
+        <select id="material">
+          <option value="concreto">Concreto reforzado</option>
+          <option value="ladrillo">Ladrillo macizo</option>
+          <option value="malla">Malla de acero (jaula de Faraday)</option>
+        </select>
+        <div class="hint" id="matHint"></div>
+      </div>
+
+      <div class="field">
+        <label>Espesor del muro <span class="val" id="thickVal">0.30 m</span></label>
+        <input type="range" id="thickness" min="5" max="100" value="30" step="1">
+      </div>
+
+      <div class="field">
+        <label>Distancia a antena legítima <span class="val" id="distExtVal">150 m</span></label>
+        <input type="range" id="distExt" min="20" max="500" value="150" step="5">
+        <div class="hint">Torre de un operador concesionario, fuera del perímetro.</div>
+      </div>
+
+      <div class="field">
+        <label>Profundidad interior de celda <span class="val" id="distIntVal">8 m</span></label>
+        <input type="range" id="distInt" min="1" max="30" value="8" step="1">
+        <div class="hint">Distancia desde el muro exterior hasta el punto de medición dentro del sector.</div>
+      </div>
+    </div>
+
+    <div class="main-col">
+
+      <div class="panel schema-panel">
+        <div class="schema-head">
+          <h2 style="margin:0;border:none;padding:0;">CORTE TRANSVERSAL — PROPAGACIÓN</h2>
+          <div class="badge" id="verdictBadge">—</div>
+        </div>
+        <svg id="scene" viewBox="0 0 900 300" style="width:100%;display:block;background:var(--panel-2);"></svg>
+        <div class="readouts">
+          <div class="ro"><div class="k">FSPL EXTERIOR</div><div class="v" id="roFspl">—</div></div>
+          <div class="ro"><div class="k">ATENUACIÓN DE MURO</div><div class="v" id="roWall">—</div></div>
+          <div class="ro"><div class="k">PÉRDIDA INTERIOR ADIC.</div><div class="v" id="roIndoor">—</div></div>
+          <div class="ro"><div class="k">POTENCIA RECIBIDA EST.</div><div class="v accent" id="roRx">—</div></div>
+        </div>
+      </div>
+
+      <div class="panel chart-panel">
+        <h2>COMPARATIVA ESPECTRAL — LAS 5 BANDAS BAJO EL MISMO MURO</h2>
+        <div class="chart-sub">Con el material y espesor actuales, así queda la potencia recibida de cada tecnología frente al umbral operativo de <b style="color:var(--text)">-95 dBm</b>.</div>
+        <svg id="barChart" viewBox="0 0 900 220" style="width:100%;display:block;"></svg>
+      </div>
+
+    </div>
+  </div>
+
+  <footer>
+    <b>Nota de método:</b> el enlace exterior se modela con pérdida de espacio libre (FSPL = 20·log&#8321;&#8320;d + 20·log&#8321;&#8320;f − 147.55, SI) sobre un EIRP de referencia de 43 dBm; la pérdida interior adicional usa un exponente de propagación n=3 típico de entornos indoor. Los coeficientes de atenuación por material (dB/m) son valores representativos de ingeniería —consistentes con las tendencias documentadas en UIT-R P.2040 (a mayor frecuencia, mayor absorción dieléctrica)— y no una reproducción de sus tablas de medición. Umbral operativo de referencia: -95 dBm (nivel mínimo típico de enganche GSM/LTE). Fines exclusivamente pedagógicos de blindaje pasivo — este proyecto no emite ni simula interferencia activa.
+  </footer>
+
+</div>
+
+<script>
+(function(){
+  const TECHS = [
+    {name:'2G', label:'850 MHz', freq:850e6, freqLabel:'850 MHz', hint:'Longitud de onda larga (~35 cm): alta difracción y penetración. Requiere blindaje masivo.'},
+    {name:'3G', label:'1900 MHz', freq:1900e6, freqLabel:'1900 MHz', hint:'Propagación moderada, sensible a la densidad del material del muro.'},
+    {name:'4G', label:'2100 MHz', freq:2100e6, freqLabel:'2100 MHz', hint:'Longitud de onda corta (~14 cm): degradación lineal significativa ante obstáculos.'},
+    {name:'5G Sub-6', label:'3.5 GHz', freq:3.5e9, freqLabel:'3.5 GHz', hint:'Coeficiente de atenuación elevado; alcance reducido incluso al aire libre.'},
+    {name:'5G mmWave', label:'28 GHz', freq:28e9, freqLabel:'28 GHz', hint:'Onda milimétrica (~1 cm): bloqueo casi total con materiales constructivos básicos.'}
+  ];
+
+  // Coeficientes de atenuación representativos (dB por metro de espesor), por índice de TECHS
+  const MATERIALS = {
+    concreto: {
+      name:'Concreto reforzado',
+      coef:[28, 45, 50, 85, 380],
+      cap: 200,
+      hint:'Matriz densa + malla de refuerzo metálica: buen absorbente en todo el espectro, excelente en mmWave.'
+    },
+    ladrillo: {
+      name:'Ladrillo macizo',
+      coef:[11, 18, 20, 32, 140],
+      cap: 160,
+      hint:'Material poroso sin refuerzo metálico: requiere mucho mayor espesor que el concreto para el mismo efecto.'
+    },
+    malla: {
+      name:'Malla de acero (jaula de Faraday)',
+      coef:[140, 150, 152, 158, 165],
+      cap: 95,
+      hint:'Blindaje por reflexión, no por absorción: la atenuación depende de la continuidad de la malla y del tamaño de apertura, casi no del espesor. Efecto satura rápido y se mantiene alto en toda la banda.'
+    }
+  };
+
+  const EIRP = 43;      // dBm, referencia típica de sector macro
+  const THRESHOLD = -95; // dBm, umbral operativo de referencia
+
+  const $ = id => document.getElementById(id);
+  const techSel = $('tech'), matSel = $('material'), thickR = $('thickness'), distExtR = $('distExt'), distIntR = $('distInt');
+
+  function fspl(distM, freqHz){
+    return 20*Math.log10(distM) + 20*Math.log10(freqHz) - 147.55;
+  }
+
+  function computeFor(techIdx, materialKey, thicknessM, distExtM, distIntM){
+    const f = TECHS[techIdx].freq;
+    const mat = MATERIALS[materialKey];
+    const fsplExt = fspl(distExtM, f);
+    const pExt = EIRP - fsplExt;
+    let wallAtt = mat.coef[techIdx] * thicknessM;
+    wallAtt = Math.min(wallAtt, mat.cap);
+    const indoorLoss = 10*3*Math.log10(Math.max(distIntM,1));
+    const pRx = pExt - wallAtt - indoorLoss;
+    return {fsplExt, pExt, wallAtt, indoorLoss, pRx, blocked: pRx < THRESHOLD};
+  }
+
+  function fmtDb(v){ return (v>=0?'':'') + v.toFixed(1) + ' dB'; }
+  function fmtDbm(v){ return v.toFixed(1) + ' dBm'; }
+
+  function drawScene(techIdx, materialKey, thicknessM, distExtM, r){
+    const svg = $('scene');
+    const W=900,H=300;
+    const wallX = 520;
+    const wallW = Math.max(18, Math.min(160, thicknessM*220));
+    const towerX = 90;
+    const rxX = 800;
+
+    const matColors = {
+      concreto:{fill:'#3B4657', pattern:'concreto'},
+      ladrillo:{fill:'#6B4A3A', pattern:'ladrillo'},
+      malla:{fill:'#57616E', pattern:'malla'}
+    };
+    const mc = matColors[materialKey];
+
+    const blocked = r.blocked;
+    const waveColor = blocked ? '#5EEAD4' : '#FB7185';
+    const dimColor = '#2A3542';
+
+    let defs = `
+      <defs>
+        <pattern id="pat-ladrillo" width="28" height="14" patternUnits="userSpaceOnUse">
+          <rect width="28" height="14" fill="#6B4A3A"/>
+          <rect x="0" y="0" width="26" height="6" fill="none" stroke="#4A2F24" stroke-width="1"/>
+          <rect x="0" y="7" width="12" height="6" fill="none" stroke="#4A2F24" stroke-width="1"/>
+          <rect x="14" y="7" width="14" height="6" fill="none" stroke="#4A2F24" stroke-width="1"/>
+        </pattern>
+        <pattern id="pat-concreto" width="10" height="10" patternUnits="userSpaceOnUse">
+          <rect width="10" height="10" fill="#3B4657"/>
+          <circle cx="2" cy="3" r="0.6" fill="#2A3542"/>
+          <circle cx="7" cy="7" r="0.6" fill="#2A3542"/>
+          <circle cx="5" cy="1" r="0.5" fill="#4A5568"/>
+        </pattern>
+        <pattern id="pat-malla" width="10" height="10" patternUnits="userSpaceOnUse">
+          <rect width="10" height="10" fill="#57616E"/>
+          <path d="M0 0 L10 0 M0 0 L0 10" stroke="#9AA7B5" stroke-width="1.4"/>
+        </pattern>
+      </defs>`;
+
+    // wave rings from tower to wall
+    let waves = '';
+    const nRings = 4;
+    for(let i=0;i<nRings;i++){
+      const t = i/nRings;
+      const cx = towerX + t*(wallX-30-towerX);
+      waves += `<circle cx="${towerX+18}" cy="150" r="${20+i*38}" fill="none" stroke="${dimColor}" stroke-width="1.5" opacity="${0.5-i*0.1}"/>`;
+    }
+
+    // signal path arrow before wall (always strong)
+    let pathBefore = `<line x1="${towerX+18}" y1="150" x2="${wallX-4}" y2="150" stroke="#E7ECF2" stroke-width="2" stroke-dasharray="6 5" opacity="0.55"/>`;
+
+    // after wall - intensity depicted by opacity/amplitude
+    const rx = Math.max(0, Math.min(1, (r.pRx + 120)/60)); // normalize -120..-60 to 0..1
+    const ampAfter = 6 + rx*22;
+    let wavePath = `M ${wallX+wallW+4} 150 `;
+    const segs = 8;
+    for(let i=1;i<=segs;i++){
+      const x = wallX+wallW+4 + i*((rxX-(wallX+wallW+4))/segs);
+      const amp = ampAfter * (1 - i/(segs*1.6));
+      const y = 150 + (i%2===0?1:-1)*amp;
+      wavePath += `L ${x} ${y} `;
+    }
+    let pathAfter = `<path d="${wavePath}" fill="none" stroke="${waveColor}" stroke-width="2.5" opacity="${blocked?0.35:0.95}"/>`;
+
+    let towerSvg = `
+      <g>
+        <line x1="${towerX+18}" y1="230" x2="${towerX+18}" y2="90" stroke="#8A94A3" stroke-width="3"/>
+        <line x1="${towerX+2}" y1="230" x2="${towerX+34}" y2="230" stroke="#8A94A3" stroke-width="3"/>
+        <line x1="${towerX+6}" y1="120" x2="${towerX+30}" y2="120" stroke="#8A94A3" stroke-width="3"/>
+        <line x1="${towerX+9}" y1="150" x2="${towerX+27}" y2="150" stroke="#8A94A3" stroke-width="3"/>
+        <circle cx="${towerX+18}" cy="90" r="4" fill="#F5A524"/>
+        <text x="${towerX+18}" y="255" text-anchor="middle" font-size="11" fill="#7E8CA0">TORRE OPERADOR</text>
+      </g>`;
+
+    let wallSvg = `
+      <g>
+        <rect x="${wallX}" y="40" width="${wallW}" height="220" fill="url(#pat-${mc.pattern})" stroke="#0B0F14" stroke-width="2"/>
+        <text x="${wallX+wallW/2}" y="28" text-anchor="middle" font-size="11" fill="#7E8CA0">${MATERIALS[materialKey].name.toUpperCase()}</text>
+        <text x="${wallX+wallW/2}" y="278" text-anchor="middle" font-size="11" fill="#7E8CA0">${thicknessM.toFixed(2)} m</text>
+      </g>`;
+
+    let cellZone = `
+      <rect x="${wallX+wallW}" y="40" width="${rxX+40-(wallX+wallW)}" height="220" fill="#0F1620" opacity="0.6"/>
+      <text x="${(wallX+wallW+rxX+40)/2}" y="60" text-anchor="middle" font-size="10.5" fill="#4E5A6B">SECTOR INTERIOR — CENTRO PENITENCIARIO</text>
+    `;
+
+    let rxSvg = `
+      <g>
+        <circle cx="${rxX}" cy="150" r="16" fill="none" stroke="${waveColor}" stroke-width="2"/>
+        <circle cx="${rxX}" cy="150" r="4" fill="${waveColor}"/>
+        <text x="${rxX}" y="185" text-anchor="middle" font-size="11" fill="#7E8CA0">PUNTO DE MEDICIÓN</text>
+      </g>`;
+
+    svg.innerHTML = defs + `<rect x="0" y="0" width="${W}" height="${H}" fill="#161D28"/>` + waves + pathBefore + cellZone + wallSvg + pathAfter + towerSvg + rxSvg;
+  }
+
+  function drawBarChart(materialKey, thicknessM, distExtM, distIntM){
+    const svg = $('barChart');
+    const W=900,H=220;
+    const chartTop=20, chartBottom=170, chartLeft=70, chartRight=860;
+    const minDb=-140, maxDb=-40;
+
+    function yFor(v){
+      const t = (v-minDb)/(maxDb-minDb);
+      return chartBottom - t*(chartBottom-chartTop);
+    }
+
+    let bars='', labels='';
+    const n = TECHS.length;
+    const bw = (chartRight-chartLeft)/n;
+    for(let i=0;i<n;i++){
+      const r = computeFor(i, materialKey, thicknessM, distExtM, distIntM);
+      const x = chartLeft + i*bw + bw*0.22;
+      const barW = bw*0.56;
+      const yTop = yFor(r.pRx);
+      const yZero = yFor(minDb);
+      const color = r.blocked ? '#5EEAD4' : '#FB7185';
+      bars += `<rect x="${x}" y="${Math.min(yTop,yZero)}" width="${barW}" height="${Math.abs(yZero-yTop)}" fill="${color}" opacity="0.85" rx="2"/>`;
+      bars += `<text x="${x+barW/2}" y="${yTop-8}" text-anchor="middle" font-size="12" fill="${color}" font-weight="600">${r.pRx.toFixed(0)}</text>`;
+      labels += `<text x="${x+barW/2}" y="${chartBottom+20}" text-anchor="middle" font-size="11.5" fill="#9AA7B5">${TECHS[i].name}</text>`;
+      labels += `<text x="${x+barW/2}" y="${chartBottom+34}" text-anchor="middle" font-size="10" fill="#5C6779">${TECHS[i].freqLabel}</text>`;
+    }
+
+    const thY = yFor(THRESHOLD);
+    const threshold = `<line x1="${chartLeft}" y1="${thY}" x2="${chartRight}" y2="${thY}" stroke="#F5A524" stroke-width="1.5" stroke-dasharray="5 4"/>
+      <text x="${chartRight}" y="${thY-6}" text-anchor="end" font-size="11" fill="#F5A524">umbral -95 dBm</text>`;
+
+    svg.innerHTML = `<rect x="0" y="0" width="${W}" height="${H}" fill="transparent"/>` + bars + threshold + labels;
+  }
+
+  function render(){
+    const techIdx = parseInt(techSel.value,10);
+    const materialKey = matSel.value;
+    const thicknessCm = parseInt(thickR.value,10);
+    const thicknessM = thicknessCm/100;
+    const distExtM = parseInt(distExtR.value,10);
+    const distIntM = parseInt(distIntR.value,10);
+
+    $('freqVal').textContent = TECHS[techIdx].freqLabel;
+    $('techHint').textContent = TECHS[techIdx].hint;
+    $('matHint').textContent = MATERIALS[materialKey].hint;
+    $('thickVal').textContent = thicknessM.toFixed(2) + ' m';
+    $('distExtVal').textContent = distExtM + ' m';
+    $('distIntVal').textContent = distIntM + ' m';
+
+    const r = computeFor(techIdx, materialKey, thicknessM, distExtM, distIntM);
+
+    $('roFspl').textContent = fmtDb(r.fsplExt);
+    $('roWall').textContent = fmtDb(r.wallAtt);
+    $('roIndoor').textContent = fmtDb(r.indoorLoss);
+    const rxEl = $('roRx');
+    rxEl.textContent = fmtDbm(r.pRx);
+    rxEl.className = 'v ' + (r.blocked ? 'accent' : 'danger');
+
+    const badge = $('verdictBadge');
+    if(r.blocked){
+      badge.textContent = 'ENLACE NO VIABLE — SEÑAL BAJO UMBRAL';
+      badge.className = 'badge blocked';
+    } else {
+      badge.textContent = 'ENLACE AÚN VIABLE — FUGA DE SEÑAL';
+      badge.className = 'badge leak';
+    }
+
+    drawScene(techIdx, materialKey, thicknessM, distExtM, r);
+    drawBarChart(materialKey, thicknessM, distExtM, distIntM);
+  }
+
+  [techSel, matSel, thickR, distExtR, distIntR].forEach(el => el.addEventListener('input', render));
+  render();
+})();
+</script>
+</body>
+</html>
