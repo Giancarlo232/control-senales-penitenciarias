@@ -22,11 +22,6 @@
     --antenna:#F5A524;
     font-family:'Space Grotesk', sans-serif;
   }
-  @media (prefers-color-scheme: light){
-    :root:not([data-theme="dark"]){
-      --bg:#0B0F14; --panel:#121821; --panel-2:#161D28; --line:#243040; --text:#E7ECF2; --muted:#7E8CA0;
-    }
-  }
   *{box-sizing:border-box;}
   html,body{margin:0;padding:0;background:var(--bg);color:var(--text);min-height:100%;}
   body{padding:28px 20px 60px;}
@@ -88,6 +83,11 @@
   .ro .v{font-size:19px;font-family:'IBM Plex Mono',monospace;font-weight:600;}
   .ro .v.accent{color:var(--accent);}
   .ro .v.danger{color:var(--danger);}
+  #compareTable td, #compareTable th{padding:8px 6px;}
+  #compareTable tbody tr{border-bottom:1px solid var(--line);}
+  #compareTable tbody tr:last-child{border-bottom:none;}
+  #compareTable td.ok{color:var(--ok);}
+  #compareTable td.leak{color:var(--danger);}
 
   .chart-panel h2{margin-bottom:6px;}
   .chart-sub{color:var(--muted);font-size:12px;margin-bottom:14px;line-height:1.5;}
@@ -154,6 +154,12 @@
         <input type="range" id="distInt" min="1" max="30" value="8" step="1">
         <div class="hint">Distancia desde el muro exterior hasta el punto de medición dentro del sector.</div>
       </div>
+
+      <div class="field">
+        <label for="eirp">EIRP del transmisor externo <span class="val" id="eirpVal">43 dBm</span></label>
+        <input type="range" id="eirp" min="30" max="60" value="43" step="1">
+        <div class="hint">43 dBm es potencia de un transmisor típico; el EIRP real de una macrocelda ronda 55-60 dBm (antena con ganancia). Configurable para explorar ambos escenarios.</div>
+      </div>
     </div>
 
     <div class="main-col">
@@ -169,6 +175,10 @@
           <div class="ro"><div class="k">ATENUACIÓN DE MURO</div><div class="v" id="roWall">—</div></div>
           <div class="ro"><div class="k">PÉRDIDA INTERIOR ADIC.</div><div class="v" id="roIndoor">—</div></div>
           <div class="ro"><div class="k">POTENCIA RECIBIDA EST.</div><div class="v accent" id="roRx">—</div></div>
+          <div class="ro"><div class="k">LONGITUD DE ONDA (λ = c/f)</div><div class="v" id="roLambda">—</div></div>
+          <div class="ro"><div class="k">PISO DE RUIDO</div><div class="v" id="roNoise">—</div></div>
+          <div class="ro"><div class="k">SNR ESTIMADA</div><div class="v" id="roSnr">—</div></div>
+          <div class="ro"><div class="k">CRITERIO DE BLOQUEO</div><div class="v" style="font-size:13px;color:var(--muted)">Rx &lt; -95 dBm</div></div>
         </div>
       </div>
 
@@ -176,6 +186,34 @@
         <h2>COMPARATIVA ESPECTRAL — LAS 5 BANDAS BAJO EL MISMO MURO</h2>
         <div class="chart-sub">Con el material y espesor actuales, así queda la potencia recibida de cada tecnología frente al umbral operativo de <b style="color:var(--text)">-95 dBm</b>.</div>
         <svg id="barChart" viewBox="0 0 900 220" style="width:100%;display:block;"></svg>
+      </div>
+
+      <div class="panel chart-panel">
+        <h2>FSPL VS. DISTANCIA — POR BANDA</h2>
+        <div class="chart-sub">La pérdida de espacio libre crece con el logaritmo de d² (y de f²): a mayor distancia u/o frecuencia, más rápido cae la potencia disponible antes incluso de tocar el muro.</div>
+        <svg id="fsplChart" viewBox="0 0 900 260" style="width:100%;display:block;"></svg>
+      </div>
+
+      <div class="panel">
+        <h2>PLANO EN PLANTA — CENTRO PENITENCIARIO (MAPA DE CALOR)</h2>
+        <div class="chart-sub">Vista superior del recinto: perímetro, pabellones, patio y torre del operador afuera. Cada celda de la cuadrícula interior muestra la potencia recibida estimada según el material, espesor/abertura y banda seleccionados. Pase el cursor o haga clic sobre una celda para ver su valor.</div>
+        <svg id="floorPlan" viewBox="0 0 900 460" style="width:100%;display:block;background:var(--panel-2);cursor:crosshair;"></svg>
+        <div class="hint" id="floorPlanInfo" style="padding:10px 2px 0;">Seleccione una celda para ver el detalle.</div>
+      </div>
+
+      <div class="panel">
+        <h2>COMPARATIVA DE MATERIALES — DEFENSA 1900 MHz VS 3.5 GHz</h2>
+        <div class="chart-sub">Espesor mínimo (o abertura máxima, en la malla) necesario para que la potencia recibida quede por debajo de -95 dBm, con la distancia exterior/interior actuales. Se recalcula en vivo.</div>
+        <table id="compareTable" style="width:100%;border-collapse:collapse;font-family:'IBM Plex Mono',monospace;font-size:12.5px;">
+          <thead>
+            <tr style="text-align:left;color:var(--muted);border-bottom:1px solid var(--line);">
+              <th style="padding:8px 6px;">Material</th>
+              <th style="padding:8px 6px;">1900 MHz (3G)</th>
+              <th style="padding:8px 6px;">3.5 GHz (5G Sub-6)</th>
+            </tr>
+          </thead>
+          <tbody id="compareTableBody"></tbody>
+        </table>
       </div>
 
     </div>
@@ -190,12 +228,13 @@
 <script>
 (function(){
   const TECHS = [
-    {name:'2G', label:'850 MHz', freq:850e6, freqLabel:'850 MHz', hint:'Longitud de onda larga (~35 cm): alta difracción y penetración. Requiere blindaje masivo.'},
-    {name:'3G', label:'1900 MHz', freq:1900e6, freqLabel:'1900 MHz', hint:'Propagación moderada, sensible a la densidad del material del muro.'},
-    {name:'4G', label:'2100 MHz', freq:2100e6, freqLabel:'2100 MHz', hint:'Longitud de onda corta (~14 cm): degradación lineal significativa ante obstáculos.'},
-    {name:'5G Sub-6', label:'3.5 GHz', freq:3.5e9, freqLabel:'3.5 GHz', hint:'Coeficiente de atenuación elevado; alcance reducido incluso al aire libre.'},
-    {name:'5G mmWave', label:'28 GHz', freq:28e9, freqLabel:'28 GHz', hint:'Onda milimétrica (~1 cm): bloqueo casi total con materiales constructivos básicos.'}
+    {name:'2G', label:'850 MHz', freq:850e6, freqLabel:'850 MHz', bwHz:200e3, hint:'Longitud de onda larga (~35 cm): alta difracción y penetración. Requiere blindaje masivo.'},
+    {name:'3G', label:'1900 MHz', freq:1900e6, freqLabel:'1900 MHz', bwHz:5e6, hint:'Propagación moderada, sensible a la densidad del material del muro.'},
+    {name:'4G', label:'2100 MHz', freq:2100e6, freqLabel:'2100 MHz', bwHz:20e6, hint:'Longitud de onda corta (~14 cm): degradación lineal significativa ante obstáculos.'},
+    {name:'5G Sub-6', label:'3.5 GHz', freq:3.5e9, freqLabel:'3.5 GHz', bwHz:100e6, hint:'Coeficiente de atenuación elevado; alcance reducido incluso al aire libre.'},
+    {name:'5G mmWave', label:'28 GHz', freq:28e9, freqLabel:'28 GHz', bwHz:400e6, hint:'Onda milimétrica (~1 cm): bloqueo casi total con materiales constructivos básicos.'}
   ];
+  const NOISE_FIGURE_DB = 7; // NF típico de un receptor comercial
 
   // Coeficientes de atenuación dieléctrica: modelo UIT-R P.2040 para materiales de baja pérdida.
   // alfa(dB/m) = 1636 * sigma / sqrt(eps'), con sigma = c * f_GHz^d (parámetros por material).
@@ -222,12 +261,12 @@
     }
   };
 
-  const EIRP = 43;      // dBm, referencia típica de sector macro
+  let EIRP = 43;      // dBm, configurable desde la interfaz (43 = potencia de transmisor; 55-60 = EIRP típico de macrocelda)
   const THRESHOLD = -95; // dBm, umbral operativo de referencia
 
   const $ = id => document.getElementById(id);
   const techSel = $('tech'), matSel = $('material'), thickR = $('thickness'), distExtR = $('distExt'), distIntR = $('distInt');
-  const apertureR = $('aperture');
+  const apertureR = $('aperture'), eirpR = $('eirp');
 
   function fspl(distM, freqHz){
     return 20*Math.log10(distM) + 20*Math.log10(freqHz) - 147.55;
@@ -268,6 +307,51 @@
     const indoorLoss = 10*3*Math.log10(Math.max(distIntM,1));
     const pRx = pExt - wallAtt - indoorLoss;
     return {fsplExt, pExt, wallAtt, indoorLoss, pRx, blocked: pRx < THRESHOLD};
+  }
+
+  function wavelengthCm(freqHz){
+    return (3e8/freqHz) * 100;
+  }
+
+  function noiseFloorDbm(bwHz){
+    return -174 + 10*Math.log10(bwHz) + NOISE_FIGURE_DB;
+  }
+
+  // Espesor mínimo (concreto/ladrillo) o abertura máxima (malla) para que pRx quede bajo THRESHOLD,
+  // dadas la banda y las distancias actuales. Devuelve {value, unit, blocks:boolean}.
+  function minShieldingFor(techIdx, materialKey, distExtM, distIntM){
+    const f = TECHS[techIdx].freq;
+    const fsplExt = fspl(distExtM, f);
+    const pExt = EIRP - fsplExt;
+    const indoorLoss = 10*3*Math.log10(Math.max(distIntM,1));
+    const attNeeded = pExt - indoorLoss - THRESHOLD; // dB de atenuación de muro requeridos
+    if(attNeeded <= 0){
+      return {value:0, unit:'m', blocks:true, note:'ya bajo umbral sin muro'};
+    }
+    if(materialKey === 'malla'){
+      const mat = MATERIALS.malla;
+      // SE decrece al aumentar la abertura a; buscamos la mayor a que aun cumple attNeeded (con cap 100dB)
+      if(attNeeded > mat.cap){
+        return {value:null, unit:'mm', blocks:false, note:'no alcanza ni con abertura mínima'};
+      }
+      let lo = 0.5, hi = 200;
+      for(let i=0;i<60;i++){
+        const mid = (lo+hi)/2;
+        const se = meshSE(f, mid, mat.wireThicknessMm);
+        if(se >= attNeeded) lo = mid; else hi = mid;
+      }
+      return {value:lo, unit:'mm', blocks:true};
+    }
+    const mat = MATERIALS[materialKey];
+    const coefPerM = p2040Coef(f, mat);
+    if(attNeeded > mat.cap){
+      return {value:null, unit:'m', blocks:false, note:'no alcanza ni al tope de saturación'};
+    }
+    const thicknessNeeded = attNeeded / coefPerM;
+    if(thicknessNeeded > 1.0){
+      return {value:thicknessNeeded, unit:'m', blocks:false, note:'requiere más de 1 m'};
+    }
+    return {value:thicknessNeeded, unit:'m', blocks:true};
   }
 
   function fmtDb(v){ return (v>=0?'':'') + v.toFixed(1) + ' dB'; }
@@ -405,6 +489,152 @@
     svg.innerHTML = `<rect x="0" y="0" width="${W}" height="${H}" fill="transparent"/>` + bars + threshold + labels;
   }
 
+  const BAND_COLORS = ['#F5A524','#5EEAD4','#60A5FA','#C084FC','#FB7185'];
+
+  function drawFsplChart(){
+    const svg = $('fsplChart');
+    const W=900,H=260;
+    const chartTop=16, chartBottom=200, chartLeft=60, chartRight=860;
+    const dMin=20, dMax=500;
+    const fMin = fspl(dMin, TECHS[0].freq);
+    const fMax = fspl(dMax, TECHS[4].freq);
+    function xFor(d){ return chartLeft + (Math.log10(d)-Math.log10(dMin))/(Math.log10(dMax)-Math.log10(dMin))*(chartRight-chartLeft); }
+    function yFor(v){ return chartBottom - (v-fMin)/(fMax-fMin)*(chartBottom-chartTop); }
+
+    let grid = '';
+    [20,50,100,200,300,500].forEach(d=>{
+      const x = xFor(d);
+      grid += `<line x1="${x}" y1="${chartTop}" x2="${x}" y2="${chartBottom}" stroke="#20293A" stroke-width="1"/>`;
+      grid += `<text x="${x}" y="${chartBottom+18}" text-anchor="middle" font-size="10.5" fill="#7E8CA0">${d}m</text>`;
+    });
+
+    let curves = '', legend = '';
+    TECHS.forEach((t,i)=>{
+      const pts = [];
+      for(let s=0;s<=40;s++){
+        const dist = dMin * Math.pow(dMax/dMin, s/40);
+        const v = fspl(dist, t.freq);
+        pts.push(`${xFor(dist).toFixed(1)} ${yFor(v).toFixed(1)}`);
+      }
+      const d = 'M ' + pts.join(' L ');
+      curves += `<path d="${d}" fill="none" stroke="${BAND_COLORS[i]}" stroke-width="2.2" opacity="0.9"/>`;
+      legend += `<g><rect x="${chartLeft + i*150}" y="${chartTop-2}" width="10" height="10" fill="${BAND_COLORS[i]}"/><text x="${chartLeft + i*150+15}" y="${chartTop+8}" font-size="11" fill="#9AA7B5">${t.name} (${t.freqLabel})</text></g>`;
+    });
+
+    svg.innerHTML = `<rect x="0" y="0" width="${W}" height="${H}" fill="transparent"/>` + grid + curves + legend;
+  }
+
+  function drawFloorPlan(techIdx, materialKey, thicknessM, distExtM, distIntM, apertureMm){
+    const svg = $('floorPlan');
+    const W=900,H=460;
+    // Perimetro del recinto
+    const perim = {x:120,y:60,w:700,h:340};
+    // Torre del operador, afuera del perimetro
+    const tower = {x:40,y:230};
+    // Pabellones dentro del perimetro (3), con patio entre ellos
+    const pav = [
+      {x:150,y:100,w:180,h:260,label:'PABELLÓN A'},
+      {x:370,y:100,w:180,h:260,label:'PABELLÓN B'},
+      {x:590,y:100,w:180,h:260,label:'PABELLÓN C'}
+    ];
+
+    function distFromTower(px,py){
+      // distancia real ~ escala 1px = 1.1m aprox, ajustada para que el borde del perímetro equivalga a distExtM
+      const dx = px-(tower.x+15), dy = py-(tower.y);
+      const pixelDist = Math.sqrt(dx*dx+dy*dy);
+      const scale = distExtM / Math.sqrt(Math.pow(perim.x-(tower.x+15),2)+Math.pow(perim.y+perim.h/2-tower.y,2));
+      return pixelDist*scale;
+    }
+
+    function powerAt(px, py){
+      const inPav = pav.find(p => px>=p.x && px<=p.x+p.w && py>=p.y && py<=p.y+p.h);
+      const totalDist = distFromTower(px,py);
+      const f = TECHS[techIdx].freq;
+      const fsplExt = fspl(Math.max(totalDist,5), f);
+      const pExt = EIRP - fsplExt;
+      if(!inPav){
+        // patio / area abierta dentro del perimetro: sin muro, perdida menor (n=2, LOS parcial)
+        return pExt - 10*2*Math.log10(Math.max(distIntM/2,1));
+      }
+      const wallAtt = wallAttenuationFor(techIdx, materialKey, thicknessM, apertureMm);
+      // profundidad relativa dentro del pabellon, hacia el interior
+      const depthFrac = Math.min(1, (px - inPav.x)/inPav.w + 0.15);
+      const indoorLoss = 10*3*Math.log10(Math.max(distIntM*depthFrac,1));
+      return pExt - wallAtt - indoorLoss;
+    }
+
+    function colorFor(v){
+      const t = Math.max(0, Math.min(1, (v - (-140))/(( -40) - (-140))));
+      // verde/cian (bloqueado) -> rojo (fuga), pivote en -95dBm
+      if(v < THRESHOLD){
+        const k = Math.max(0, Math.min(1,(v-(-140))/(THRESHOLD-(-140))));
+        return `rgb(${Math.round(20+k*40)},${Math.round(120+k*100)},${Math.round(110+k*90)})`;
+      } else {
+        const k = Math.max(0, Math.min(1,(v-THRESHOLD)/((-40)-THRESHOLD)));
+        return `rgb(${Math.round(180+k*70)},${Math.round(90-k*60)},${Math.round(90-k*50)})`;
+      }
+    }
+
+    const cols=28, rows=14;
+    const cellW = perim.w/cols, cellH = perim.h/rows;
+    let cells = '';
+    for(let r=0;r<rows;r++){
+      for(let c=0;c<cols;c++){
+        const cx = perim.x + c*cellW + cellW/2;
+        const cy = perim.y + r*cellH + cellH/2;
+        const v = powerAt(cx,cy);
+        const fill = colorFor(v);
+        cells += `<rect x="${(perim.x+c*cellW).toFixed(1)}" y="${(perim.y+r*cellH).toFixed(1)}" width="${cellW.toFixed(1)}" height="${cellH.toFixed(1)}" fill="${fill}" opacity="0.85" data-v="${v.toFixed(1)}" class="hcell"><title>${v.toFixed(1)} dBm</title></rect>`;
+      }
+    }
+
+    let pavSvg = pav.map(p=>`<rect x="${p.x}" y="${p.y}" width="${p.w}" height="${p.h}" fill="none" stroke="#E7ECF2" stroke-width="2" opacity="0.5"/><text x="${p.x+p.w/2}" y="${p.y-8}" text-anchor="middle" font-size="11" fill="#9AA7B5">${p.label}</text>`).join('');
+
+    const perimSvg = `<rect x="${perim.x}" y="${perim.y}" width="${perim.w}" height="${perim.h}" fill="none" stroke="#7E8CA0" stroke-width="2.5"/>`;
+    const patioLabel = `<text x="${perim.x+perim.w/2}" y="${perim.y+perim.h+22}" text-anchor="middle" font-size="10.5" fill="#5C6779">PATIO / ÁREA COMÚN (sin muro de bloqueo)</text>`;
+    const towerSvg = `<g>
+        <line x1="${tower.x+15}" y1="${tower.y+40}" x2="${tower.x+15}" y2="${tower.y-30}" stroke="#8A94A3" stroke-width="3"/>
+        <line x1="${tower.x}" y1="${tower.y+40}" x2="${tower.x+30}" y2="${tower.y+40}" stroke="#8A94A3" stroke-width="3"/>
+        <circle cx="${tower.x+15}" cy="${tower.y-30}" r="4" fill="#F5A524"/>
+        <text x="${tower.x+15}" y="${tower.y+58}" text-anchor="middle" font-size="10" fill="#7E8CA0">TORRE</text>
+        <text x="${tower.x+15}" y="${tower.y+70}" text-anchor="middle" font-size="10" fill="#7E8CA0">OPERADOR</text>
+      </g>`;
+
+    svg.innerHTML = `<rect x="0" y="0" width="${W}" height="${H}" fill="#161D28"/>` + cells + perimSvg + pavSvg + towerSvg + patioLabel;
+
+    svg.onmousemove = svg.onclick = (ev) => {
+      const target = ev.target;
+      if(target && target.classList && target.classList.contains('hcell')){
+        const v = target.getAttribute('data-v');
+        $('floorPlanInfo').textContent = `Celda seleccionada: ${v} dBm — ${parseFloat(v) < THRESHOLD ? 'bajo umbral (bloqueado)' : 'sobre umbral (fuga de señal)'}.`;
+      }
+    };
+  }
+
+  function renderCompareTable(distExtM, distIntM){
+    const body = $('compareTableBody');
+    const idx1900 = 1, idx35 = 3;
+    const rows = [
+      {key:'concreto', label:'Concreto reforzado'},
+      {key:'ladrillo', label:'Ladrillo macizo'},
+      {key:'malla', label:'Malla de acero'}
+    ];
+    let html = '';
+    rows.forEach(row=>{
+      const m1900 = minShieldingFor(idx1900, row.key, distExtM, distIntM);
+      const m35 = minShieldingFor(idx35, row.key, distExtM, distIntM);
+      function fmt(m){
+        if(m.value === null) return `<span style="color:var(--danger)">no bloquea (${m.note})</span>`;
+        if(m.value === 0) return 'ya bajo umbral';
+        const cls = m.blocks ? 'ok' : 'leak';
+        const unit = m.unit;
+        return `<span class="${cls}">${m.value.toFixed(2)} ${unit}${!m.blocks && m.note ? ' ('+m.note+')' : ''}</span>`;
+      }
+      html += `<tr><td>${row.label}</td><td class="${m1900.blocks?'ok':'leak'}">${fmt(m1900)}</td><td class="${m35.blocks?'ok':'leak'}">${fmt(m35)}</td></tr>`;
+    });
+    body.innerHTML = html;
+  }
+
   function render(){
     const techIdx = parseInt(techSel.value,10);
     const materialKey = matSel.value;
@@ -413,6 +643,8 @@
     const distExtM = parseInt(distExtR.value,10);
     const distIntM = parseInt(distIntR.value,10);
     const apertureMm = parseInt(apertureR.value,10);
+    EIRP = parseInt(eirpR.value,10);
+    $('eirpVal').textContent = EIRP + ' dBm';
 
     const isMalla = materialKey === 'malla';
     $('thicknessField').style.display = isMalla ? 'none' : '';
@@ -442,6 +674,15 @@
     rxEl.textContent = fmtDbm(r.pRx);
     rxEl.className = 'v ' + (r.blocked ? 'accent' : 'danger');
 
+    const lambdaCm = wavelengthCm(TECHS[techIdx].freq);
+    $('roLambda').textContent = lambdaCm.toFixed(1) + ' cm';
+    const noise = noiseFloorDbm(TECHS[techIdx].bwHz);
+    $('roNoise').textContent = noise.toFixed(1) + ' dBm';
+    const snr = r.pRx - noise;
+    const snrEl = $('roSnr');
+    snrEl.textContent = snr.toFixed(1) + ' dB';
+    snrEl.className = 'v ' + (snr > 0 ? 'danger' : 'accent');
+
     const badge = $('verdictBadge');
     if(r.blocked){
       badge.textContent = 'ENLACE NO VIABLE — SEÑAL BAJO UMBRAL';
@@ -453,9 +694,12 @@
 
     drawScene(techIdx, materialKey, thicknessM, r);
     drawBarChart(materialKey, thicknessM, distExtM, distIntM, apertureMm);
+    drawFsplChart();
+    drawFloorPlan(techIdx, materialKey, thicknessM, distExtM, distIntM, apertureMm);
+    renderCompareTable(distExtM, distIntM);
   }
 
-  [techSel, matSel, thickR, distExtR, distIntR, apertureR].forEach(el => el.addEventListener('input', render));
+  [techSel, matSel, thickR, distExtR, distIntR, apertureR, eirpR].forEach(el => el.addEventListener('input', render));
   render();
 })();
 </script>
