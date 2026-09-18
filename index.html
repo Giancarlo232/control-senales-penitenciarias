@@ -110,7 +110,7 @@
       <h2>VARIABLES DE INGENIERÍA</h2>
 
       <div class="field">
-        <label>Tecnología / banda<span class="val" id="freqVal">1900 MHz</span></label>
+        <label for="tech">Tecnología / banda<span class="val" id="freqVal">1900 MHz</span></label>
         <select id="tech">
           <option value="0">2G — 850 MHz</option>
           <option value="1" selected>3G — 1900 MHz</option>
@@ -122,7 +122,7 @@
       </div>
 
       <div class="field">
-        <label>Material del muro</label>
+        <label for="material">Material del muro</label>
         <select id="material">
           <option value="concreto">Concreto reforzado</option>
           <option value="ladrillo">Ladrillo macizo</option>
@@ -131,19 +131,26 @@
         <div class="hint" id="matHint"></div>
       </div>
 
-      <div class="field">
-        <label>Espesor del muro <span class="val" id="thickVal">0.30 m</span></label>
+      <div class="field" id="thicknessField">
+        <label for="thickness">Espesor del muro <span class="val" id="thickVal">0.30 m</span></label>
         <input type="range" id="thickness" min="5" max="100" value="30" step="1">
+        <div class="hint" id="extrapWarn"></div>
+      </div>
+
+      <div class="field" id="apertureField" style="display:none;">
+        <label for="aperture">Abertura de malla (a) <span class="val" id="apertureVal">5 mm</span></label>
+        <input type="range" id="aperture" min="1" max="50" value="5" step="1">
+        <div class="hint">Lado libre del hueco de la malla. La efectividad de blindaje depende de la abertura, no del espesor del muro. Grosor de alambre fijo t = 2 mm.</div>
       </div>
 
       <div class="field">
-        <label>Distancia a antena legítima <span class="val" id="distExtVal">150 m</span></label>
+        <label for="distExt">Distancia a antena legítima <span class="val" id="distExtVal">150 m</span></label>
         <input type="range" id="distExt" min="20" max="500" value="150" step="5">
         <div class="hint">Torre de un operador concesionario, fuera del perímetro.</div>
       </div>
 
       <div class="field">
-        <label>Profundidad interior de celda <span class="val" id="distIntVal">8 m</span></label>
+        <label for="distInt">Profundidad interior de celda <span class="val" id="distIntVal">8 m</span></label>
         <input type="range" id="distInt" min="1" max="30" value="8" step="1">
         <div class="hint">Distancia desde el muro exterior hasta el punto de medición dentro del sector.</div>
       </div>
@@ -175,7 +182,7 @@
   </div>
 
   <footer>
-    <b>Nota de método:</b> el enlace exterior se modela con pérdida de espacio libre (FSPL = 20·log&#8321;&#8320;d + 20·log&#8321;&#8320;f − 147.55, SI) sobre un EIRP de referencia de 43 dBm; la pérdida interior adicional usa un exponente de propagación n=3 típico de entornos indoor. Los coeficientes de atenuación por material (dB/m) son valores representativos de ingeniería —consistentes con las tendencias documentadas en UIT-R P.2040 (a mayor frecuencia, mayor absorción dieléctrica)— y no una reproducción de sus tablas de medición. Umbral operativo de referencia: -95 dBm (nivel mínimo típico de enganche GSM/LTE). Fines exclusivamente pedagógicos de blindaje pasivo — este proyecto no emite ni simula interferencia activa.
+    <b>Nota de método:</b> el enlace exterior se modela con pérdida de espacio libre (FSPL = 20·log&#8321;&#8320;d + 20·log&#8321;&#8320;f − 147.55, SI) sobre un EIRP de referencia de 43 dBm. El concreto y el ladrillo usan el coeficiente de atenuación dieléctrica de UIT-R P.2040 para materiales de baja pérdida (α ≈ 1636·σ/√ε′, con σ = c·f<sub style="font-size:9px">GHz</sub><sup style="font-size:9px">d</sup>), calculado en el código —no valores fijos— y con un tope de saturación práctico (concreto 200 dB, ladrillo 160 dB) que representa el punto en que el ruido térmico domina sobre cualquier absorción adicional; 850 MHz queda fuera del rango validado de la norma (desde 1 GHz) y se marca como extrapolación. La malla de acero se modela como blindaje por apertura (guía de onda bajo corte + reflexiones múltiples), no como absorción dependiente del espesor: SE ≈ 20·log&#8321;&#8320;(λ/2a) + 27.3·(t/a), con tope práctico de 100 dB. La pérdida interior adicional usa un exponente de propagación n=3 típico de entornos indoor, como simplificación independiente de la frecuencia, y se suma de forma aparte al FSPL exterior. Umbral operativo de referencia: -95 dBm (nivel mínimo típico de enganche GSM/LTE). Fines exclusivamente pedagógicos de blindaje pasivo — este proyecto no emite ni simula interferencia activa.
   </footer>
 
 </div>
@@ -190,25 +197,28 @@
     {name:'5G mmWave', label:'28 GHz', freq:28e9, freqLabel:'28 GHz', hint:'Onda milimétrica (~1 cm): bloqueo casi total con materiales constructivos básicos.'}
   ];
 
-  // Coeficientes de atenuación representativos (dB por metro de espesor), por índice de TECHS
+  // Coeficientes de atenuación dieléctrica: modelo UIT-R P.2040 para materiales de baja pérdida.
+  // alfa(dB/m) = 1636 * sigma / sqrt(eps'), con sigma = c * f_GHz^d (parámetros por material).
+  // Concreto: válido 1-100 GHz. Ladrillo: válido 1-40 GHz. 850 MHz queda fuera de ambos rangos
+  // (se muestra igualmente como extrapolación, con advertencia visible en la interfaz).
   const MATERIALS = {
     concreto: {
       name:'Concreto reforzado',
-      coef:[28, 45, 50, 85, 380],
+      model:'p2040', eps:5.24, c:0.0462, d:0.7822, validFromGHz:1,
       cap: 200,
-      hint:'Matriz densa + malla de refuerzo metálica: buen absorbente en todo el espectro, excelente en mmWave.'
+      hint:'Matriz densa + malla de refuerzo metálica: buen absorbente en todo el espectro, excelente en mmWave. Coeficiente calculado con UIT-R P.2040.'
     },
     ladrillo: {
       name:'Ladrillo macizo',
-      coef:[11, 18, 20, 32, 140],
+      model:'p2040', eps:3.91, c:0.0238, d:0.16, validFromGHz:1,
       cap: 160,
-      hint:'Material poroso sin refuerzo metálico: requiere mucho mayor espesor que el concreto para el mismo efecto.'
+      hint:'Material poroso sin refuerzo metálico: requiere mucho mayor espesor que el concreto para el mismo efecto. Coeficiente calculado con UIT-R P.2040.'
     },
     malla: {
       name:'Malla de acero (jaula de Faraday)',
-      coef:[140, 150, 152, 158, 165],
-      cap: 95,
-      hint:'Blindaje por reflexión, no por absorción: la atenuación depende de la continuidad de la malla y del tamaño de apertura, casi no del espesor. Efecto satura rápido y se mantiene alto en toda la banda.'
+      model:'aperture', wireThicknessMm: 2,
+      cap: 100,
+      hint:'Blindaje por reflexión (efecto de guía de onda bajo corte), no por absorción dieléctrica: la efectividad depende del tamaño de la abertura de la malla, no del espesor del muro. A diferencia del concreto o el ladrillo, protege MEJOR a baja frecuencia y PEOR a alta frecuencia, porque la longitud de onda se acerca al tamaño del hueco.'
     }
   };
 
@@ -217,18 +227,44 @@
 
   const $ = id => document.getElementById(id);
   const techSel = $('tech'), matSel = $('material'), thickR = $('thickness'), distExtR = $('distExt'), distIntR = $('distInt');
+  const apertureR = $('aperture');
 
   function fspl(distM, freqHz){
     return 20*Math.log10(distM) + 20*Math.log10(freqHz) - 147.55;
   }
 
-  function computeFor(techIdx, materialKey, thicknessM, distExtM, distIntM){
+  // UIT-R P.2040: coeficiente de atenuación dieléctrica (dB/m) para un material de baja pérdida.
+  function p2040Coef(freqHz, mat){
+    const fGHz = freqHz/1e9;
+    const sigma = mat.c * Math.pow(fGHz, mat.d);
+    return 1636 * sigma / Math.sqrt(mat.eps);
+  }
+
+  // Efectividad de blindaje de una malla metálica, por modelo de apertura (guía de onda bajo corte
+  // + reflexiones múltiples): SE(dB) = max(0, 20*log10(lambda/(2a))) + 27.3*(t/a), lambda/a/t en mm.
+  function meshSE(freqHz, apertureMm, wireThicknessMm){
+    const c = 3e8;
+    const lambdaMm = (c/freqHz) * 1000;
+    const term1 = Math.max(0, 20*Math.log10(lambdaMm/(2*apertureMm)));
+    const term2 = 27.3 * (wireThicknessMm/apertureMm);
+    return Math.min(100, term1 + term2);
+  }
+
+  function wallAttenuationFor(techIdx, materialKey, thicknessM, apertureMm){
     const f = TECHS[techIdx].freq;
     const mat = MATERIALS[materialKey];
+    if(mat.model === 'aperture'){
+      return meshSE(f, apertureMm, mat.wireThicknessMm);
+    }
+    const coefPerM = p2040Coef(f, mat);
+    return Math.min(coefPerM * thicknessM, mat.cap);
+  }
+
+  function computeFor(techIdx, materialKey, thicknessM, distExtM, distIntM, apertureMm){
+    const f = TECHS[techIdx].freq;
     const fsplExt = fspl(distExtM, f);
     const pExt = EIRP - fsplExt;
-    let wallAtt = mat.coef[techIdx] * thicknessM;
-    wallAtt = Math.min(wallAtt, mat.cap);
+    const wallAtt = wallAttenuationFor(techIdx, materialKey, thicknessM, apertureMm);
     const indoorLoss = 10*3*Math.log10(Math.max(distIntM,1));
     const pRx = pExt - wallAtt - indoorLoss;
     return {fsplExt, pExt, wallAtt, indoorLoss, pRx, blocked: pRx < THRESHOLD};
@@ -237,7 +273,7 @@
   function fmtDb(v){ return (v>=0?'':'') + v.toFixed(1) + ' dB'; }
   function fmtDbm(v){ return v.toFixed(1) + ' dBm'; }
 
-  function drawScene(techIdx, materialKey, thicknessM, distExtM, r){
+  function drawScene(techIdx, materialKey, thicknessM, r){
     const svg = $('scene');
     const W=900,H=300;
     const wallX = 520;
@@ -280,8 +316,6 @@
     let waves = '';
     const nRings = 4;
     for(let i=0;i<nRings;i++){
-      const t = i/nRings;
-      const cx = towerX + t*(wallX-30-towerX);
       waves += `<circle cx="${towerX+18}" cy="150" r="${20+i*38}" fill="none" stroke="${dimColor}" stroke-width="1.5" opacity="${0.5-i*0.1}"/>`;
     }
 
@@ -333,7 +367,7 @@
     svg.innerHTML = defs + `<rect x="0" y="0" width="${W}" height="${H}" fill="#161D28"/>` + waves + pathBefore + cellZone + wallSvg + pathAfter + towerSvg + rxSvg;
   }
 
-  function drawBarChart(materialKey, thicknessM, distExtM, distIntM){
+  function drawBarChart(materialKey, thicknessM, distExtM, distIntM, apertureMm){
     const svg = $('barChart');
     const W=900,H=220;
     const chartTop=20, chartBottom=170, chartLeft=70, chartRight=860;
@@ -348,14 +382,18 @@
     const n = TECHS.length;
     const bw = (chartRight-chartLeft)/n;
     for(let i=0;i<n;i++){
-      const r = computeFor(i, materialKey, thicknessM, distExtM, distIntM);
+      const r = computeFor(i, materialKey, thicknessM, distExtM, distIntM, apertureMm);
       const x = chartLeft + i*bw + bw*0.22;
       const barW = bw*0.56;
-      const yTop = yFor(r.pRx);
+      const clipped = r.pRx < minDb;
+      const plotVal = clipped ? minDb : r.pRx;
+      const yTop = yFor(plotVal);
       const yZero = yFor(minDb);
       const color = r.blocked ? '#5EEAD4' : '#FB7185';
-      bars += `<rect x="${x}" y="${Math.min(yTop,yZero)}" width="${barW}" height="${Math.abs(yZero-yTop)}" fill="${color}" opacity="0.85" rx="2"/>`;
-      bars += `<text x="${x+barW/2}" y="${yTop-8}" text-anchor="middle" font-size="12" fill="${color}" font-weight="600">${r.pRx.toFixed(0)}</text>`;
+      const barH = Math.max(1, Math.abs(yZero-yTop));
+      bars += `<rect x="${x}" y="${Math.min(yTop,yZero)}" width="${barW}" height="${barH}" fill="${color}" opacity="0.85" rx="2"/>`;
+      const labelText = clipped ? '< -140' : r.pRx.toFixed(0);
+      bars += `<text x="${x+barW/2}" y="${yTop-8}" text-anchor="middle" font-size="12" fill="${color}" font-weight="600">${labelText}</text>`;
       labels += `<text x="${x+barW/2}" y="${chartBottom+20}" text-anchor="middle" font-size="11.5" fill="#9AA7B5">${TECHS[i].name}</text>`;
       labels += `<text x="${x+barW/2}" y="${chartBottom+34}" text-anchor="middle" font-size="10" fill="#5C6779">${TECHS[i].freqLabel}</text>`;
     }
@@ -374,15 +412,28 @@
     const thicknessM = thicknessCm/100;
     const distExtM = parseInt(distExtR.value,10);
     const distIntM = parseInt(distIntR.value,10);
+    const apertureMm = parseInt(apertureR.value,10);
+
+    const isMalla = materialKey === 'malla';
+    $('thicknessField').style.display = isMalla ? 'none' : '';
+    $('apertureField').style.display = isMalla ? '' : 'none';
 
     $('freqVal').textContent = TECHS[techIdx].freqLabel;
     $('techHint').textContent = TECHS[techIdx].hint;
     $('matHint').textContent = MATERIALS[materialKey].hint;
     $('thickVal').textContent = thicknessM.toFixed(2) + ' m';
+    $('apertureVal').textContent = apertureMm + ' mm';
     $('distExtVal').textContent = distExtM + ' m';
     $('distIntVal').textContent = distIntM + ' m';
 
-    const r = computeFor(techIdx, materialKey, thicknessM, distExtM, distIntM);
+    const extrapWarn = $('extrapWarn');
+    if(!isMalla && techIdx === 0){
+      extrapWarn.textContent = '⚠ 850 MHz está fuera del rango validado de UIT-R P.2040 para este material (norma válida desde 1 GHz). El valor se muestra como extrapolación del modelo.';
+    } else {
+      extrapWarn.textContent = '';
+    }
+
+    const r = computeFor(techIdx, materialKey, thicknessM, distExtM, distIntM, apertureMm);
 
     $('roFspl').textContent = fmtDb(r.fsplExt);
     $('roWall').textContent = fmtDb(r.wallAtt);
@@ -400,11 +451,11 @@
       badge.className = 'badge leak';
     }
 
-    drawScene(techIdx, materialKey, thicknessM, distExtM, r);
-    drawBarChart(materialKey, thicknessM, distExtM, distIntM);
+    drawScene(techIdx, materialKey, thicknessM, r);
+    drawBarChart(materialKey, thicknessM, distExtM, distIntM, apertureMm);
   }
 
-  [techSel, matSel, thickR, distExtR, distIntR].forEach(el => el.addEventListener('input', render));
+  [techSel, matSel, thickR, distExtR, distIntR, apertureR].forEach(el => el.addEventListener('input', render));
   render();
 })();
 </script>
