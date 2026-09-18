@@ -177,15 +177,18 @@
           <div class="ro"><div class="k">POTENCIA RECIBIDA EST.</div><div class="v accent" id="roRx">—</div></div>
           <div class="ro"><div class="k">LONGITUD DE ONDA (λ = c/f)</div><div class="v" id="roLambda">—</div></div>
           <div class="ro"><div class="k">PISO DE RUIDO</div><div class="v" id="roNoise">—</div></div>
-          <div class="ro"><div class="k">SNR ESTIMADA</div><div class="v" id="roSnr">—</div></div>
-          <div class="ro"><div class="k">CRITERIO DE BLOQUEO</div><div class="v" style="font-size:13px;color:var(--muted)">Rx &lt; -95 dBm</div></div>
+          <div class="ro"><div class="k">SNR ESTIMADA (mín. banda: <span id="roSnrMin">—</span>)</div><div class="v" id="roSnr">—</div></div>
+          <div class="ro"><div class="k">CRITERIO 1 — SENSIBILIDAD</div><div class="v" id="roCritSens" style="font-size:13px;">—</div></div>
+          <div class="ro"><div class="k">CRITERIO 2 — SNR</div><div class="v" id="roCritSnr" style="font-size:13px;">—</div></div>
         </div>
+        <div class="hint" id="mismatchNote" style="display:none;padding:10px 18px 14px;"></div>
       </div>
 
       <div class="panel chart-panel">
         <h2>COMPARATIVA ESPECTRAL — LAS 5 BANDAS BAJO EL MISMO MURO</h2>
         <div class="chart-sub">Con el material y espesor actuales, así queda la potencia recibida de cada tecnología frente al umbral operativo de <b style="color:var(--text)">-95 dBm</b>.</div>
         <svg id="barChart" viewBox="0 0 900 220" style="width:100%;display:block;"></svg>
+        <div class="hint" id="meshFlatNote" style="display:none;padding:12px 2px 0;border-top:1px dashed var(--line);margin-top:12px;"></div>
       </div>
 
       <div class="panel chart-panel">
@@ -220,7 +223,15 @@
   </div>
 
   <footer>
-    <b>Nota de método:</b> el enlace exterior se modela con pérdida de espacio libre (FSPL = 20·log&#8321;&#8320;d + 20·log&#8321;&#8320;f − 147.55, SI) sobre un EIRP de referencia de 43 dBm. El concreto y el ladrillo usan el coeficiente de atenuación dieléctrica de UIT-R P.2040 para materiales de baja pérdida (α ≈ 1636·σ/√ε′, con σ = c·f<sub style="font-size:9px">GHz</sub><sup style="font-size:9px">d</sup>), calculado en el código —no valores fijos— y con un tope de saturación práctico (concreto 200 dB, ladrillo 160 dB) que representa el punto en que el ruido térmico domina sobre cualquier absorción adicional; 850 MHz queda fuera del rango validado de la norma (desde 1 GHz) y se marca como extrapolación. La malla de acero se modela como blindaje por apertura (guía de onda bajo corte + reflexiones múltiples), no como absorción dependiente del espesor: SE ≈ 20·log&#8321;&#8320;(λ/2a) + 27.3·(t/a), con tope práctico de 100 dB. La pérdida interior adicional usa un exponente de propagación n=3 típico de entornos indoor, como simplificación independiente de la frecuencia, y se suma de forma aparte al FSPL exterior. Umbral operativo de referencia: -95 dBm (nivel mínimo típico de enganche GSM/LTE). Fines exclusivamente pedagógicos de blindaje pasivo — este proyecto no emite ni simula interferencia activa.
+    <b>Nota de método:</b> el enlace exterior se modela con pérdida de espacio libre (FSPL = 20·log&#8321;&#8320;d + 20·log&#8321;&#8320;f − 147.55, SI) sobre un EIRP configurable (43 dBm por defecto). El concreto y el ladrillo usan el coeficiente de atenuación dieléctrica de UIT-R P.2040 para materiales de baja pérdida (α ≈ 1636·σ/√ε′, con σ = c·f<sub style="font-size:9px">GHz</sub><sup style="font-size:9px">d</sup>), calculado en el código —no valores fijos—; 850 MHz queda fuera del rango validado de la norma (desde 1 GHz) y se marca como extrapolación. La malla de acero se modela como blindaje por apertura (guía de onda bajo corte + reflexiones múltiples), no como absorción dependiente del espesor: SE ≈ 20·log&#8321;&#8320;(λ/2a) + 27.3·(t/a), con tope práctico de 100 dB.
+    <br><br>
+    <b>Tope de saturación (200 dB concreto, 160 dB ladrillo, 100 dB malla):</b> no representa un límite de la absorción dieléctrica del material —esa sigue creciendo con el espesor—, sino el piso práctico que imponen las trayectorias de flanqueo del muro: puertas, ventanas, ductos de ventilación, juntas constructivas y difracción de la señal por encima o alrededor del muro. Una vez que la trayectoria directa a través del material ya está muy atenuada, son esas otras vías las que dominan la fuga real, no el ruido térmico del receptor (el ruido del receptor no limita cuánto atenúa un muro; solo define el piso de ruido con el que se compara la señal). El tope se expresa en dB de atenuación total —no en dB/m—: el coeficiente por metro y el tope se alcanzan a espesores distintos según el material y la banda (p. ej. concreto a 28 GHz alcanza sus 200 dB desde ~0.45 m, pero a 850 MHz necesitaría ~6.9 m).
+    <br><br>
+    <b>Planitud espectral de la malla:</b> con malla, las 5 bandas dan una potencia recibida casi idéntica para una misma abertura (p. ej. -100.5 dBm con a=5 mm, 150 m, 8 m). No es un error: en SE ≈ 20·log&#8321;&#8320;(λ/2a) + 27.3·(t/a), λ=c/f, así que el +20·log&#8321;&#8320;(f) del FSPL se cancela exactamente con el −20·log&#8321;&#8320;(f) que aporta λ dentro del primer término, mientras λ/(2a) &gt; 1. Es un argumento de defensa a favor de la malla: blinda parejo en toda la banda celular, mientras concreto y ladrillo dependen fuertemente de la frecuencia. La excepción ocurre cuando a ≥ λ/2 de la banda más alta (28 GHz, a ≥ 5.36 mm): ahí ese término se anula y esa banda se despega del resto.
+    <br><br>
+    <b>Dos criterios de bloqueo, no uno:</b> la interfaz muestra (1) el umbral de sensibilidad de receptor Rx &lt; -95 dBm, que es el criterio de la guía del curso y ya incorpora de fábrica una SNR mínima típica de enganche, y (2) un criterio de SNR explícito, SNR &lt; SNR<sub style="font-size:9px">mín</sub>, con SNR<sub style="font-size:9px">mín</sub> por tecnología (2G 9 dB, 3G 5 dB, 4G 2 dB, 5G Sub-6 y mmWave 0 dB) usado también como pivote de color en vez de un 0 dB arbitrario. Ambos criterios suelen coincidir, pero pueden discrepar en banda angosta: un ancho de banda pequeño implica un piso de ruido muy bajo (piso = -174 + 10·log&#8321;&#8320;(BW) + NF), por lo que la SNR puede seguir siendo alta aunque la potencia absoluta ya esté bajo -95 dBm (típico en 2G bajo malla). Cuando discrepan, la interfaz lo declara explícitamente en vez de mostrar solo el criterio 1.
+    <br><br>
+    La pérdida interior adicional usa un exponente de propagación n=3 típico de entornos indoor, como simplificación independiente de la frecuencia, y se suma de forma aparte al FSPL exterior. En el plano en planta, el patio/área común dentro del perímetro (sin muro) se modela con un exponente n=2 (más cercano a línea de vista parcial que el interior de un pabellón) y una profundidad efectiva de distIntM/2: son supuestos de trazado para ilustrar el contraste patio-vs-pabellón, no mediciones de campo. Umbral operativo de referencia: -95 dBm (nivel mínimo típico de enganche GSM/LTE). Fines exclusivamente pedagógicos de blindaje pasivo — este proyecto no emite ni simula interferencia activa.
   </footer>
 
 </div>
@@ -228,18 +239,29 @@
 <script>
 (function(){
   const TECHS = [
-    {name:'2G', label:'850 MHz', freq:850e6, freqLabel:'850 MHz', bwHz:200e3, hint:'Longitud de onda larga (~35 cm): alta difracción y penetración. Requiere blindaje masivo.'},
-    {name:'3G', label:'1900 MHz', freq:1900e6, freqLabel:'1900 MHz', bwHz:5e6, hint:'Propagación moderada, sensible a la densidad del material del muro.'},
-    {name:'4G', label:'2100 MHz', freq:2100e6, freqLabel:'2100 MHz', bwHz:20e6, hint:'Longitud de onda corta (~14 cm): degradación lineal significativa ante obstáculos.'},
-    {name:'5G Sub-6', label:'3.5 GHz', freq:3.5e9, freqLabel:'3.5 GHz', bwHz:100e6, hint:'Coeficiente de atenuación elevado; alcance reducido incluso al aire libre.'},
-    {name:'5G mmWave', label:'28 GHz', freq:28e9, freqLabel:'28 GHz', bwHz:400e6, hint:'Onda milimétrica (~1 cm): bloqueo casi total con materiales constructivos básicos.'}
+    {name:'2G', label:'850 MHz', freq:850e6, freqLabel:'850 MHz', bwHz:200e3, snrMinDb:9, hint:'Longitud de onda larga (~35 cm): alta difracción y penetración. Requiere blindaje masivo.'},
+    {name:'3G', label:'1900 MHz', freq:1900e6, freqLabel:'1900 MHz', bwHz:5e6, snrMinDb:5, hint:'Propagación moderada, sensible a la densidad del material del muro.'},
+    {name:'4G', label:'2100 MHz', freq:2100e6, freqLabel:'2100 MHz', bwHz:20e6, snrMinDb:2, hint:'Longitud de onda corta (~14 cm): degradación lineal significativa ante obstáculos.'},
+    {name:'5G Sub-6', label:'3.5 GHz', freq:3.5e9, freqLabel:'3.5 GHz', bwHz:100e6, snrMinDb:0, hint:'Coeficiente de atenuación elevado; alcance reducido incluso al aire libre.'},
+    {name:'5G mmWave', label:'28 GHz', freq:28e9, freqLabel:'28 GHz', bwHz:400e6, snrMinDb:0, hint:'Onda milimétrica (~1 cm): bloqueo casi total con materiales constructivos básicos.'}
   ];
   const NOISE_FIGURE_DB = 7; // NF típico de un receptor comercial
+  // SNR mínima de enganche por tecnología (dB), usada como pivote de color y como segundo criterio
+  // de bloqueo independiente del umbral de sensibilidad de -95 dBm. Valores de referencia típicos
+  // de enganche (no de throughput pleno): 2G (GMSK) ~9 dB, 3G (WCDMA) ~5 dB, 4G (LTE QPSK robusto) ~2 dB,
+  // 5G Sub-6/mmWave (NR, códigos más robustos y beamforming) ~0 dB.
 
   // Coeficientes de atenuación dieléctrica: modelo UIT-R P.2040 para materiales de baja pérdida.
   // alfa(dB/m) = 1636 * sigma / sqrt(eps'), con sigma = c * f_GHz^d (parámetros por material).
   // Concreto: válido 1-100 GHz. Ladrillo: válido 1-40 GHz. 850 MHz queda fuera de ambos rangos
   // (se muestra igualmente como extrapolación, con advertencia visible en la interfaz).
+  // Los topes de saturación (cap) por material NO representan un límite físico de la atenuación
+  // dieléctrica en sí (esa sigue creciendo con el espesor). Representan el piso práctico que imponen
+  // las trayectorias de flanqueo del muro —puertas, ventanas, ductos de ventilación, juntas
+  // constructivas y difracción de la señal por encima o alrededor del muro—, que terminan dominando
+  // el balance de potencias una vez que la trayectoria directa a través del material ya está muy
+  // atenuada. Por eso el tope se expresa en dB de atenuación total, no en dB/m: es un techo de
+  // "fuga por otras vías", no un techo de absorción del material.
   const MATERIALS = {
     concreto: {
       name:'Concreto reforzado',
@@ -306,7 +328,18 @@
     const wallAtt = wallAttenuationFor(techIdx, materialKey, thicknessM, apertureMm);
     const indoorLoss = 10*3*Math.log10(Math.max(distIntM,1));
     const pRx = pExt - wallAtt - indoorLoss;
-    return {fsplExt, pExt, wallAtt, indoorLoss, pRx, blocked: pRx < THRESHOLD};
+    const noise = noiseFloorDbm(TECHS[techIdx].bwHz);
+    const snr = pRx - noise;
+    const snrMin = TECHS[techIdx].snrMinDb;
+    const blockedBySensitivity = pRx < THRESHOLD;
+    const blockedBySnr = snr < snrMin;
+    return {
+      fsplExt, pExt, wallAtt, indoorLoss, pRx, noise, snr, snrMin,
+      blockedBySensitivity, blockedBySnr,
+      // Criterio primario mostrado en la interfaz: el umbral de sensibilidad (-95 dBm), que ya
+      // incorpora una SNR mínima típica de fábrica. blocked se mantiene por compatibilidad.
+      blocked: blockedBySensitivity
+    };
   }
 
   function wavelengthCm(freqHz){
@@ -340,6 +373,15 @@
         const se = meshSE(f, mid, mat.wireThicknessMm);
         if(se >= attNeeded) lo = mid; else hi = mid;
       }
+      // El control de abertura solo cubre 1-50 mm: si el requisito cae fuera de ese rango,
+      // se informa en vez de mostrar un valor que el usuario no puede seleccionar.
+      const APERTURE_MIN = 1, APERTURE_MAX = 50;
+      if(lo > APERTURE_MAX){
+        return {value:APERTURE_MAX, unit:'mm', blocks:true, note:'no requiere blindaje de malla en este escenario: hasta la abertura máxima simulada (50 mm) ya bloquea'};
+      }
+      if(lo < APERTURE_MIN){
+        return {value:APERTURE_MIN, unit:'mm', blocks:false, note:'requiere abertura menor a 1 mm, fuera del rango simulado por el control'};
+      }
       return {value:lo, unit:'mm', blocks:true};
     }
     const mat = MATERIALS[materialKey];
@@ -348,8 +390,12 @@
       return {value:null, unit:'m', blocks:false, note:'no alcanza ni al tope de saturación'};
     }
     const thicknessNeeded = attNeeded / coefPerM;
-    if(thicknessNeeded > 1.0){
+    const THICKNESS_MAX = 1.0; // slider tope real: 100 cm
+    if(thicknessNeeded > THICKNESS_MAX){
       return {value:thicknessNeeded, unit:'m', blocks:false, note:'requiere más de 1 m'};
+    }
+    if(thicknessNeeded >= 0.95*THICKNESS_MAX){
+      return {value:thicknessNeeded, unit:'m', blocks:true, note:'en el límite superior del rango de espesor simulado, máx. 1.00 m'};
     }
     return {value:thicknessNeeded, unit:'m', blocks:true};
   }
@@ -564,7 +610,6 @@
     }
 
     function colorFor(v){
-      const t = Math.max(0, Math.min(1, (v - (-140))/(( -40) - (-140))));
       // verde/cian (bloqueado) -> rojo (fuga), pivote en -95dBm
       if(v < THRESHOLD){
         const k = Math.max(0, Math.min(1,(v-(-140))/(THRESHOLD-(-140))));
@@ -628,7 +673,7 @@
         if(m.value === 0) return 'ya bajo umbral';
         const cls = m.blocks ? 'ok' : 'leak';
         const unit = m.unit;
-        return `<span class="${cls}">${m.value.toFixed(2)} ${unit}${!m.blocks && m.note ? ' ('+m.note+')' : ''}</span>`;
+        return `<span class="${cls}">${m.value.toFixed(2)} ${unit}${m.note ? ' ('+m.note+')' : ''}</span>`;
       }
       html += `<tr><td>${row.label}</td><td class="${m1900.blocks?'ok':'leak'}">${fmt(m1900)}</td><td class="${m35.blocks?'ok':'leak'}">${fmt(m35)}</td></tr>`;
     });
@@ -676,12 +721,18 @@
 
     const lambdaCm = wavelengthCm(TECHS[techIdx].freq);
     $('roLambda').textContent = lambdaCm.toFixed(1) + ' cm';
-    const noise = noiseFloorDbm(TECHS[techIdx].bwHz);
-    $('roNoise').textContent = noise.toFixed(1) + ' dBm';
-    const snr = r.pRx - noise;
+    $('roNoise').textContent = r.noise.toFixed(1) + ' dBm';
+    $('roSnrMin').textContent = r.snrMin.toFixed(0) + ' dB';
     const snrEl = $('roSnr');
-    snrEl.textContent = snr.toFixed(1) + ' dB';
-    snrEl.className = 'v ' + (snr > 0 ? 'danger' : 'accent');
+    snrEl.textContent = r.snr.toFixed(1) + ' dB';
+    // Pivote de color en la SNR mínima de enganche de la tecnología, no en 0 dB: por debajo de ese
+    // mínimo el enlace no engancha aunque haya señal medible.
+    snrEl.className = 'v ' + (r.blockedBySnr ? 'accent' : 'danger');
+
+    const critSensEl = $('roCritSens');
+    critSensEl.innerHTML = `Rx ${r.blockedBySensitivity ? '&lt;' : '&ge;'} -95 dBm — <b style="color:${r.blockedBySensitivity ? 'var(--ok)' : 'var(--danger)'}">${r.blockedBySensitivity ? 'bloquea' : 'no bloquea'}</b>`;
+    const critSnrEl = $('roCritSnr');
+    critSnrEl.innerHTML = `SNR ${r.blockedBySnr ? '&lt;' : '&ge;'} ${r.snrMin.toFixed(0)} dB — <b style="color:${r.blockedBySnr ? 'var(--ok)' : 'var(--danger)'}">${r.blockedBySnr ? 'bloquea' : 'no bloquea'}</b>`;
 
     const badge = $('verdictBadge');
     if(r.blocked){
@@ -690,6 +741,40 @@
     } else {
       badge.textContent = 'ENLACE AÚN VIABLE — FUGA DE SEÑAL';
       badge.className = 'badge leak';
+    }
+
+    // Los dos criterios (umbral de sensibilidad vs. SNR mínima) normalmente coinciden, porque -95 dBm
+    // ya fue elegido para incorporar una SNR mínima típica de enganche. Pueden discrepar en banda
+    // angosta (bwHz pequeño → piso de ruido muy bajo → SNR alta aun con Rx bajo), como ocurre con
+    // 2G bajo malla. Cuando discrepan, se declara explícitamente en vez de dejar solo el criterio 1.
+    const mismatchEl = $('mismatchNote');
+    if(r.blockedBySensitivity !== r.blockedBySnr){
+      mismatchEl.style.display = '';
+      if(r.blockedBySensitivity && !r.blockedBySnr){
+        mismatchEl.textContent = `⚠ Criterios en desacuerdo: bloqueado por el umbral de sensibilidad (Rx=${r.pRx.toFixed(1)} dBm < -95 dBm), pero la SNR (${r.snr.toFixed(1)} dB) aún estaría por encima del mínimo de enganche de esta tecnología (${r.snrMin.toFixed(0)} dB) — típico en banda angosta, donde el piso de ruido cae mucho más que la potencia recibida.`;
+      } else {
+        mismatchEl.textContent = `⚠ Criterios en desacuerdo: la potencia recibida (${r.pRx.toFixed(1)} dBm) está por encima del umbral de sensibilidad de -95 dBm, pero la SNR (${r.snr.toFixed(1)} dB) ya cae por debajo del mínimo de enganche de esta tecnología (${r.snrMin.toFixed(0)} dB) — el criterio de SNR es aquí el más estricto.`;
+      }
+    } else {
+      mismatchEl.style.display = 'none';
+      mismatchEl.textContent = '';
+    }
+
+    // Nota de planitud espectral: solo aplica con malla, y solo mientras a < lambda/2 en todas las
+    // bandas mostradas (si no, la banda que ya superó el corte se despega del resto).
+    const meshNoteEl = $('meshFlatNote');
+    if(isMalla){
+      meshNoteEl.style.display = '';
+      const lambdaMinMm = wavelengthCm(TECHS[4].freq) * 10; // 28 GHz, la de menor longitud de onda
+      const cutoffReached = apertureMm >= lambdaMinMm/2;
+      if(!cutoffReached){
+        meshNoteEl.innerHTML = `<b>¿Por qué las 5 barras dan casi la misma potencia con malla?</b> No es un error de la gráfica: en el modelo de apertura, el término dominante de blindaje es 20·log&#8321;&#8320;(λ/2a), y λ=c/f. Al sustituir en el balance de potencias, el +20·log&#8321;&#8320;(f) del FSPL se cancela exactamente con el −20·log&#8321;&#8320;(f) que aporta λ dentro de ese término, mientras λ/(2a) &gt; 1 para la banda. El resultado: la potencia recibida es independiente de la frecuencia mientras la malla siga en régimen de guía de onda bajo corte. Esto es una fortaleza de la malla como argumento de defensa: blinda de forma pareja en toda la banda celular, a diferencia del concreto o el ladrillo, cuya atenuación depende fuertemente de la frecuencia (dB/m crece con f). La excepción es cuando la abertura ya es mayor o igual a λ/2 de la banda más alta (28 GHz, a ≥ 5.36 mm): ahí ese término se anula y esa banda se despega del resto del grupo.`;
+      } else {
+        meshNoteEl.innerHTML = `<b>Nota sobre la planitud:</b> con esta abertura (${apertureMm} mm) ya se superó el corte de guía de onda de 28 GHz (a ≥ λ/2 ≈ 5.36 mm para esa banda): el término 20·log&#8321;&#8320;(λ/2a) de 5G mmWave se anuló, así que esa banda ya no cancela el término de frecuencia del FSPL y se despega de las otras 4, que siguen parejas entre sí.`;
+      }
+    } else {
+      meshNoteEl.style.display = 'none';
+      meshNoteEl.textContent = '';
     }
 
     drawScene(techIdx, materialKey, thicknessM, r);
